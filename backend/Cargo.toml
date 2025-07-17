@@ -1,0 +1,27 @@
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+anyhow = "1.0"
+dotenvy = "0.15"
+hex = "0.4"
+serde_json = "1.0"
+futures = "0.3"
+clap = { version = "4.5", features = ["derive"] }
+
+# Workspace dependency
+common = { path = "../common" }
+
+# Indexer
+ethers = { version = "2.0", features = ["ws"] }
+
+# Database
+diesel = { version = "2.1", features = ["postgres", "r2d2", "chrono", "numeric"] }
+bigdecimal = "0.4"
+chrono = "0.4"
+serde = { version = "1.0.219", features = ["derive"] }
