@@ -27,6 +27,8 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 struct Cli {
     #[arg(long, default_value_t = false)]
     no_indexing: bool,
+    #[arg(long)]
+    start_block: Option<u64>,
 }
 
 fn run_migrations(connection: &mut PgConnection) -> Result<(), anyhow::Error> {
@@ -60,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
         println!("🚀 Starting indexer background task...");
         let indexer_pool = pool.clone();
         tokio::spawn(async move {
-            if let Err(e) = indexer::run_indexer(indexer_pool).await {
+            if let Err(e) = indexer::run_indexer(indexer_pool, cli.start_block).await {
                 eprintln!("Indexer process failed: {}", e);
             }
         });

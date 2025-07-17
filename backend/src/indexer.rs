@@ -26,13 +26,14 @@ const TRANSFER_EVENT_SIGNATURE: H256 = H256([
 ]);
 
 /// The main entry point for the indexer.
-pub async fn run_indexer(pool: DbPool) -> Result<()> {
+pub async fn run_indexer(pool: DbPool, start_block: Option<u64>) -> Result<()> {
     let rpc_url = std::env::var("ETH_RPC_URL").expect("ETH_RPC_URL must be set");
     let provider = Arc::new(EthProvider::connect(&rpc_url).await?);
     println!("✅ Indexer connected to Ethereum RPC");
 
     let mut conn = pool.get()?;
-    let mut start_block = get_latest_indexed_block(&mut conn)?.unwrap_or(22_940_091);
+    let mut start_block =
+        get_latest_indexed_block(&mut conn)?.unwrap_or(start_block.unwrap_or(0) as i64);
     drop(conn); // Release connection before long-running loop
 
     println!("🚀 Starting indexer from block {}", start_block);
