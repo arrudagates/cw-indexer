@@ -2,6 +2,8 @@
 
 This is a simple Ethereum indexer + a web interface.
 
+A build of the web interface is available [here](https://arrudagates.github.io/cw-indexer/)!
+
 ## Setup
 
 ### Database
