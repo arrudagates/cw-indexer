@@ -25,7 +25,7 @@ pub fn BlockDetailsPage() -> impl IntoView {
                         <span>"Hash:"</span>      <span>{block.hash.clone()}</span>
                         <span>"Number:"</span>    <span>{block.number}</span>
                         <span>"Timestamp:"</span> <span>{block.timestamp.to_string()}</span>
-                        <span>"Miner:"</span>     <span><A href=format!("/account/{}", block.miner) class="link">{block.miner.clone()}</A></span>
+                        <span>"Miner:"</span>     <span><A href=format!("/cw-indexer/account/{}", block.miner) class="link">{block.miner.clone()}</A></span>
                         <span>"Transactions:"</span> <span>{block.tx_count}</span>
                         <span>"Gas Used:"</span>  <span>{block.gas_used.to_string()}</span>
                         <span>"Gas Limit:"</span> <span>{block.gas_limit.to_string()}</span>
@@ -51,11 +51,11 @@ pub fn BlockDetailsPage() -> impl IntoView {
                                                 let:tx
                                             >
                                                 <tr>
-                                                    <td><A href=format!("/tx/{}", tx.hash) class="link truncate">{tx.hash.clone()}</A></td>
-                                                    <td><A href=format!("/account/{}", tx.from_address) class="link truncate">{tx.from_address.clone()}</A></td>
+                                                    <td><A href=format!("/cw-indexer/tx/{}", tx.hash) class="link truncate">{tx.hash.clone()}</A></td>
+                                                    <td><A href=format!("/cw-indexer/account/{}", tx.from_address) class="link truncate">{tx.from_address.clone()}</A></td>
                                                     <td>{
                                                         if let Some(to) = tx.to_address {
-                                                            view! { <A href=format!("/account/{}", to) class="link truncate">{to}</A> }.into_view()
+                                                            view! { <A href=format!("/cw-indexer/account/{}", to) class="link truncate">{to}</A> }.into_view()
                                                         } else {
                                                             view! { <span class="tag">"Contract Creation"</span> }.into_view()
                                                         }

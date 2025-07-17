@@ -26,11 +26,11 @@ pub fn TransactionDetailsPage() -> impl IntoView {
                         <h1 class="title">"Transaction Details"</h1>
                         <div class="detail-grid">
                             <span>"Hash:"</span>        <span>{tx.hash.clone()}</span>
-                            <span>"Block:"</span>       <span><A href=format!("/block/{}", tx.block_hash) class="link">{tx.block_number}</A></span>
-                            <span>"From:"</span>        <span><A href=format!("/account/{}", tx.from_address) class="link">{tx.from_address.clone()}</A></span>
+                            <span>"Block:"</span>       <span><A href=format!("/cw-indexer/block/{}", tx.block_hash) class="link">{tx.block_number}</A></span>
+                            <span>"From:"</span>        <span><A href=format!("/cw-indexer/account/{}", tx.from_address) class="link">{tx.from_address.clone()}</A></span>
                             <span>"To:"</span>          <span>{
                                 if let Some(to) = tx.to_address {
-                                    view! { <A href=format!("/account/{}", to) class="link">{to}</A> }.into_view()
+                                    view! { <A href=format!("/cw-indexer/account/{}", to) class="link">{to}</A> }.into_view()
                                 } else {
                                     view! { "Contract Creation" }.into_view()
                                 }
@@ -62,9 +62,9 @@ pub fn TransactionDetailsPage() -> impl IntoView {
                                                 let:transfer
                                             >
                                                 <tr>
-                                                    <td><A href=format!("/account/{}", transfer.token_address) class="link truncate">{transfer.token_address}</A></td>
-                                                    <td><A href=format!("/account/{}", transfer.from_address) class="link truncate">{transfer.from_address}</A></td>
-                                                    <td><A href=format!("/account/{}", transfer.to_address) class="link truncate">{transfer.to_address}</A></td>
+                                                    <td><A href=format!("/cw-indexer/account/{}", transfer.token_address) class="link truncate">{transfer.token_address}</A></td>
+                                                    <td><A href=format!("/cw-indexer/account/{}", transfer.from_address) class="link truncate">{transfer.from_address}</A></td>
+                                                    <td><A href=format!("/cw-indexer/account/{}", transfer.to_address) class="link truncate">{transfer.to_address}</A></td>
                                                     <td>
                                                         {
                                                             if let Some(id) = transfer.token_id {
@@ -90,7 +90,7 @@ pub fn TransactionDetailsPage() -> impl IntoView {
                                 <div class="log-entry">
                                     <div class="log-header">
                                         <span class="log-index">{i}</span>
-                                        <span class="log-address"><A href=format!("/account/{}", log.address) class="link">{log.address}</A></span>
+                                        <span class="log-address"><A href=format!("/cw-indexer/account/{}", log.address) class="link">{log.address}</A></span>
                                     </div>
                                     <div class="log-topics">
                                         <p><strong>"Topics"</strong></p>

@@ -32,9 +32,9 @@ pub fn HomePage() -> impl IntoView {
                                     let:block
                                 >
                                     <tr>
-                                        <td><A href=format!("/block/{}", block.hash) class="link">{block.number}</A></td>
-                                        <td><A href=format!("/block/{}", block.hash) class="link truncate">{block.hash.clone()}</A></td>
-                                        <td><A href=format!("/account/{}", block.miner) class="link truncate">{block.miner.clone()}</A></td>
+                                        <td><A href=format!("/cw-indexer/block/{}", block.hash) class="link">{block.number}</A></td>
+                                        <td><A href=format!("/cw-indexer/block/{}", block.hash) class="link truncate">{block.hash.clone()}</A></td>
+                                        <td><A href=format!("/cw-indexer/account/{}", block.miner) class="link truncate">{block.miner.clone()}</A></td>
                                         <td>{block.tx_count}</td>
                                     </tr>
                                 </For>
