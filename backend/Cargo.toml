@@ -25,3 +25,4 @@ diesel = { version = "2.1", features = ["postgres", "r2d2", "chrono", "numeric"]
 bigdecimal = "0.4"
 chrono = "0.4"
 serde = { version = "1.0.219", features = ["derive"] }
+diesel_migrations = "2.2.0"

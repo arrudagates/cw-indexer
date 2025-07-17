@@ -9,7 +9,9 @@ use crate::api::{
 };
 use axum::{routing::get, Router};
 use clap::Parser;
-use std::net::SocketAddr;
+use diesel::{Connection, PgConnection};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use std::{env, net::SocketAddr};
 use tower_http::cors::{Any, CorsLayer};
 
 mod api;
@@ -18,11 +20,22 @@ mod indexer;
 mod models;
 mod schema;
 
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+
 #[derive(Parser, Debug)]
 #[command()]
 struct Cli {
     #[arg(long, default_value_t = false)]
     no_indexing: bool,
+}
+
+fn run_migrations(connection: &mut PgConnection) -> Result<(), anyhow::Error> {
+    println!("Running pending database migrations...");
+    connection
+        .run_pending_migrations(MIGRATIONS)
+        .map_err(|e| anyhow::anyhow!(e))?;
+    println!("✅ Database migrations completed.");
+    Ok(())
 }
 
 #[tokio::main]
@@ -31,6 +44,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Load .env file
     dotenvy::dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let mut conn = PgConnection::establish(&database_url)
+        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
+
+    run_migrations(&mut conn)?;
 
     // Establish DB connection pool
     let pool = db::establish_connection_pool();
