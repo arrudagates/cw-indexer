@@ -2,7 +2,7 @@
 
 This is a simple Ethereum indexer + a web interface.
 
-Github pages likes to redirect /path to /path/ breaking web apps, so unfortunately I can't make the web interface accessible through gh pages.
+A build of the web interface is available [here](https://cw-indexer-arrudagates.wasmer.app/)!
 
 ## Setup
 

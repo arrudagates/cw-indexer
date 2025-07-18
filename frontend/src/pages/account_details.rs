@@ -35,7 +35,7 @@ pub fn AccountDetailsPage() -> impl IntoView {
                                     let:balance
                                 >
                                     <tr>
-                                        <td><A href=format!("/cw-indexer/account/{}", balance.token_address) class="link truncate">{balance.token_address}</A></td>
+                                        <td><A href=format!("/account/{}", balance.token_address) class="link truncate">{balance.token_address}</A></td>
                                         <td>
                                             {
                                                 if let Some(id) = balance.token_id {
