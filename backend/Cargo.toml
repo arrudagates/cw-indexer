@@ -26,3 +26,7 @@ bigdecimal = "0.4"
 chrono = "0.4"
 serde = { version = "1.0.219", features = ["derive"] }
 diesel_migrations = "2.2.0"
+
+[dev-dependencies]
+uuid = { version = "1", features = ["v4", "fast-rng"] }
+url = "2.5.0"

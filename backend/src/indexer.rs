@@ -20,7 +20,7 @@ type EthProvider = Provider<Ws>;
 type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
 
 // Standard `Transfer(address,address,uint256)` event signature for ERC20 and ERC721
-const TRANSFER_EVENT_SIGNATURE: H256 = H256([
+pub const TRANSFER_EVENT_SIGNATURE: H256 = H256([
     0xdd, 0xf2, 0x52, 0xad, 0x1b, 0xe2, 0xc8, 0x9b, 0x69, 0xc2, 0xb0, 0x68, 0xfc, 0x37, 0x8d, 0xaa,
     0x95, 0x2b, 0xa7, 0xf1, 0x63, 0xc4, 0xa1, 0x16, 0x28, 0xf5, 0x5a, 0x4d, 0xf5, 0x23, 0xb3, 0xef,
 ]);
@@ -73,14 +73,11 @@ pub async fn run_indexer(pool: DbPool, start_block: Option<u64>) -> Result<()> {
 }
 
 /// Processes a single block and its transactions, storing them in the database.
-async fn process_block(
+pub async fn process_block(
     pool: DbPool,
     provider: Arc<EthProvider>,
     block: EthersBlock<EthersTransaction>,
 ) -> Result<()> {
-    let block_number = block.number.unwrap().as_u64() as i64;
-
-    // --- 1. Asynchronously fetch all receipts for the block ---
     // Collect all transaction hashes from the block.
     let tx_hashes: Vec<H256> = block.transactions.iter().map(|tx| tx.hash).collect();
 
@@ -96,20 +93,35 @@ async fn process_block(
     let mut transactions_with_receipts = Vec::new();
     for (tx, receipt_result) in block.transactions.iter().zip(receipts_results) {
         match receipt_result {
-            Ok(Some(receipt)) => transactions_with_receipts.push((tx, receipt)),
+            Ok(Some(receipt)) => transactions_with_receipts.push((tx.clone(), receipt)),
             Ok(None) => return Err(anyhow::anyhow!("Receipt not found for tx {}", tx.hash)),
             Err(e) => return Err(e.into()),
         }
     }
 
-    // --- 2. Run all database operations in a single synchronous transaction ---
+    // Run all database operations in a single synchronous transaction.
     let mut conn = pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|connection| {
+    process_block_data(&mut conn, &block, &transactions_with_receipts)?;
+
+    println!(
+        "✅ Successfully indexed block {}",
+        block.number.unwrap().as_u64()
+    );
+    Ok(())
+}
+
+/// Executes all database writes for a block within a single transaction.
+pub fn process_block_data(
+    connection: &mut DbConnection,
+    block: &EthersBlock<EthersTransaction>,
+    transactions_with_receipts: &[(EthersTransaction, TransactionReceipt)],
+) -> Result<()> {
+    connection.transaction::<_, anyhow::Error, _>(|conn| {
         // Insert Block
         let new_block = Block {
             hash: format!("{:#x}", block.hash.unwrap()),
             parent_hash: format!("{:#x}", block.parent_hash),
-            number: block_number,
+            number: block.number.unwrap().as_u64() as i64,
             timestamp: chrono::DateTime::from_timestamp(block.timestamp.as_u64() as i64, 0)
                 .unwrap(),
             miner: format!("{:#x}", block.author.unwrap()),
@@ -124,22 +136,22 @@ async fn process_block(
         diesel::insert_into(blocks::table)
             .values(&new_block)
             .on_conflict_do_nothing()
-            .execute(connection)?;
+            .execute(conn)?;
 
         // Process all collected transactions and receipts
         for (pos, (tx, receipt)) in transactions_with_receipts.iter().enumerate() {
             let from_addr_str = format!("{:#x}", tx.from);
             let to_addr_str = tx.to.map(|a| format!("{:#x}", a));
 
-            ensure_account_exists(connection, &from_addr_str)?;
+            ensure_account_exists(conn, &from_addr_str)?;
             if let Some(to) = &to_addr_str {
-                ensure_account_exists(connection, to)?;
+                ensure_account_exists(conn, to)?;
             }
 
             let new_tx = Transaction {
                 hash: format!("{:#x}", tx.hash),
                 block_hash: format!("{:#x}", block.hash.unwrap()),
-                block_number,
+                block_number: block.number.unwrap().as_u64() as i64,
                 from_address: from_addr_str,
                 to_address: to_addr_str,
                 value: u256_to_bigdecimal(tx.value)?,
@@ -154,22 +166,18 @@ async fn process_block(
             diesel::insert_into(transactions::table)
                 .values(&new_tx)
                 .on_conflict_do_nothing()
-                .execute(connection)?;
+                .execute(conn)?;
 
             for log in &receipt.logs {
-                let tx_hash_str = format!("{:#x}", log.transaction_hash.unwrap());
-                process_log(connection, &tx_hash_str, log)?;
+                process_log(conn, &format!("{:#x}", log.transaction_hash.unwrap()), log)?;
             }
         }
         Ok(())
-    })?;
-
-    println!("✅ Successfully indexed block {}", block_number);
-    Ok(())
+    })
 }
 
 /// Processes a single log entry.
-fn process_log(connection: &mut DbConnection, tx_hash: &str, log: &EthersLog) -> Result<()> {
+pub fn process_log(connection: &mut DbConnection, tx_hash: &str, log: &EthersLog) -> Result<()> {
     let topic0 = log.topics.first().map(|h| format!("{:#x}", h));
     let topic1 = log.topics.get(1).map(|h| format!("{:#x}", h));
     let topic2 = log.topics.get(2).map(|h| format!("{:#x}", h));
@@ -200,13 +208,13 @@ fn process_log(connection: &mut DbConnection, tx_hash: &str, log: &EthersLog) ->
 }
 
 /// Processes a decoded Transfer event to update token balances.
-fn process_token_transfer(
+pub fn process_token_transfer(
     connection: &mut DbConnection,
     tx_hash: &str,
     log: &EthersLog,
 ) -> Result<()> {
     if log.topics.len() < 3 {
-        return Ok(()); // Not a standard transfer event
+        return Ok(());
     }
 
     let token_address = format!("{:#x}", log.address);
@@ -214,17 +222,16 @@ fn process_token_transfer(
     let to_address = format!("{:#x}", Address::from(log.topics[2]));
 
     let (value, token_id) = if log.topics.len() == 4 {
-        // ERC721: Transfer(address, address, tokenId)
         let value = BigDecimal::from(1);
-        let token_id = Some(u256_to_bigdecimal(U256::from(log.topics[3].as_bytes()))?);
+        let token_id = Some(u256_to_bigdecimal(U256::from_big_endian(
+            log.topics[3].as_bytes(),
+        ))?);
         (Some(value), token_id)
     } else {
-        // ERC20: Transfer(address, address, value)
         let value = Some(u256_to_bigdecimal(U256::from_big_endian(&log.data))?);
         (value, None)
     };
 
-    // Insert token transfer record
     let new_transfer = NewTokenTransfer {
         tx_hash,
         token_address: &token_address,
@@ -237,19 +244,17 @@ fn process_token_transfer(
         .values(&new_transfer)
         .execute(connection)?;
 
-    // Decrement sender's balance (if not burning from zero address)
     if from_address != format!("{:#x}", Address::zero()) {
         diesel::update(
             token_balances::table
                 .filter(token_balances::owner_address.eq(&from_address))
                 .filter(token_balances::token_address.eq(&token_address))
-                .filter(token_balances::token_id.eq(&token_id)),
+                .filter(token_balances::token_id.is_not_distinct_from(&token_id)),
         )
         .set(token_balances::amount.eq(token_balances::amount - value.as_ref().unwrap()))
         .execute(connection)?;
     }
 
-    // Increment receiver's balance (or insert new record)
     diesel::insert_into(token_balances::table)
         .values((
             token_balances::owner_address.eq(&to_address),
@@ -270,7 +275,7 @@ fn process_token_transfer(
 }
 
 /// Gets the latest block number from the database.
-fn get_latest_indexed_block(connection: &mut DbConnection) -> Result<Option<i64>> {
+pub fn get_latest_indexed_block(connection: &mut DbConnection) -> Result<Option<i64>> {
     blocks::table
         .select(diesel::dsl::max(blocks::number))
         .get_result::<Option<i64>>(connection)
@@ -278,7 +283,7 @@ fn get_latest_indexed_block(connection: &mut DbConnection) -> Result<Option<i64>
 }
 
 /// Ensures an account exists in the database, inserting it if it doesn't.
-fn ensure_account_exists(connection: &mut DbConnection, addr: &str) -> Result<()> {
+pub fn ensure_account_exists(connection: &mut DbConnection, addr: &str) -> Result<()> {
     let new_account = Account {
         address: addr.to_string(),
         created_at: chrono::Utc::now(),
@@ -291,6 +296,6 @@ fn ensure_account_exists(connection: &mut DbConnection, addr: &str) -> Result<()
 }
 
 /// Converts a U256 value to a `BigDecimal`.
-fn u256_to_bigdecimal(value: U256) -> Result<BigDecimal> {
+pub fn u256_to_bigdecimal(value: U256) -> Result<BigDecimal> {
     BigDecimal::from_str(&value.to_string()).map_err(Into::into)
 }

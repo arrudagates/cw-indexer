@@ -20,6 +20,9 @@ mod indexer;
 mod models;
 mod schema;
 
+#[cfg(test)]
+mod tests;
+
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 
 #[derive(Parser, Debug)]
@@ -54,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     run_migrations(&mut conn)?;
 
     // Establish DB connection pool
-    let pool = db::establish_connection_pool();
+    let pool = db::establish_connection_pool(&database_url);
 
     if cli.no_indexing {
         println!("🚫 Indexer is disabled by --no-indexing flag. Running in API-only mode.");
